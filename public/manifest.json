@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "FB Notes Extended",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Viết ghi chú Facebook dài không giới hạn, set thời hạn tùy chỉnh. Write unlimited-length Facebook notes with custom durations.",
   "permissions": [
     "activeTab",

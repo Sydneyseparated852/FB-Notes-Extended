@@ -166,7 +166,7 @@ body {
   border-radius: 22px;
   padding: 10px 14px;
   margin-left: 20px;
-  max-width: min(64%, 200px);
+  max-width: min(64%, 140px);
   font-size: 13px;
   line-height: 1.2;
   text-align: center;
@@ -208,6 +208,7 @@ body {
 
 .bubble-music-artist-row {
   margin-top: 2px;
+  margin-bottom: 10px;
   font-size: 11px;
   color: #9fb0c2;
   white-space: nowrap;
@@ -220,7 +221,7 @@ body {
   color: #f0f6fc;
   line-height: 1.35;
   min-width: 60px;
-  max-height: 88px;
+  max-height: 100px;
   overflow-y: auto;
   overflow-x: hidden;
   white-space: pre-wrap;
@@ -589,7 +590,8 @@ body {
 .duration-custom-btn,
 .music-search-btn,
 .friends-search-btn,
-.music-clear-btn {
+.music-clear-btn,
+.music-save-btn {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #1e2733;
@@ -603,8 +605,43 @@ body {
 .duration-custom-btn:hover:not(:disabled),
 .music-search-btn:hover:not(:disabled),
 .friends-search-btn:hover:not(:disabled),
-.music-clear-btn:hover:not(:disabled) {
+.music-clear-btn:hover:not(:disabled),
+.music-save-btn:hover:not(:disabled) {
   border-color: var(--primary);
+}
+
+.music-save-btn {
+  background: rgba(34, 139, 34, 0.2);
+  border-color: rgba(34, 139, 34, 0.5);
+  color: #4ade80;
+}
+
+.music-save-btn:hover:not(:disabled) {
+  background: rgba(34, 139, 34, 0.3);
+  border-color: #4ade80;
+}
+
+.modal-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.music-save-btn-header {
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #4ade80;
+}
+
+.music-save-btn-header:hover {
+  background: rgba(34, 139, 34, 0.2);
 }
 
 .duration-custom-btn:disabled,
@@ -642,6 +679,31 @@ body {
   gap: 8px;
 }
 
+.music-selected-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.music-preview-play-btn {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.music-preview-play-btn-inline {
+  width: 26px;
+  height: 26px;
+}
+
 .music-selected-text {
   min-width: 0;
   display: flex;
@@ -662,6 +724,66 @@ body {
 .music-selected-text span {
   font-size: 11px;
   color: var(--text-3);
+}
+
+.music-trim {
+  margin-top: 0;
+}
+
+.music-trim-time {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--text-2);
+  margin-bottom: 6px;
+  align-items: center;
+}
+
+.music-wave {
+  position: relative;
+  height: 46px;
+  border-radius: 10px;
+  background: #0f141b;
+  border: 1px solid var(--line-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 10px 10px;
+  overflow: hidden;
+}
+
+.music-wave-bar {
+  flex: 1 1 0;
+  width: auto;
+  max-width: 4px;
+  background: rgba(226, 237, 243, 0.6);
+  border-radius: 999px;
+  opacity: 0.75;
+}
+
+.music-trim-window {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 8px;
+  border: 2px solid rgba(47, 129, 247, 0.95);
+  background: rgba(47, 129, 247, 0.12);
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.35) inset;
+  cursor: grab;
+  overflow: hidden;
+}
+
+.music-trim-progress {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  background: rgba(47, 129, 247, 0.35);
+}
+
+.music-trim-window:active {
+  cursor: grabbing;
 }
 
 .music-list,
@@ -704,14 +826,14 @@ body {
 }
 
 .music-item-top {
-  display: grid;
-  grid-template-columns: 34px minmax(0, 1fr) auto;
+  display: flex;
   align-items: center;
   gap: 8px;
   width: 100%;
 }
 
 .music-item-text {
+  flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -739,6 +861,32 @@ body {
   color: var(--text-2);
   white-space: nowrap;
   margin-left: 4px;
+}
+
+.music-play-btn {
+  background: rgba(47, 129, 247, 0.15);
+  border: 1px solid rgba(47, 129, 247, 0.3);
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--primary);
+  flex-shrink: 0;
+  margin-left: 8px;
+  transition: all 0.15s ease;
+}
+
+.music-play-btn:hover {
+  background: rgba(47, 129, 247, 0.25);
+  border-color: var(--primary);
+  transform: scale(1.05);
+}
+
+.music-play-btn:active {
+  transform: scale(0.95);
 }
 
 .music-cover-placeholder {
@@ -899,42 +1047,40 @@ body {
   border-color: rgba(239, 68, 68, 0.35);
 }
 
-body::-webkit-scrollbar,
-.composer-scroll::-webkit-scrollbar,
-.music-list::-webkit-scrollbar,
-.friends-list::-webkit-scrollbar,
-.bubble-note-content::-webkit-scrollbar,
-.note-textarea::-webkit-scrollbar {
-  width: 7px;
-  height: 7px;
+/* ===== Scrollbar base ===== */
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
 }
 
-body::-webkit-scrollbar-track,
-.composer-scroll::-webkit-scrollbar-track,
-.music-list::-webkit-scrollbar-track,
-.friends-list::-webkit-scrollbar-track,
-.bubble-note-content::-webkit-scrollbar-track,
-.note-textarea::-webkit-scrollbar-track {
+/* Track (làm như invisible để tạo cảm giác tách biệt) */
+*::-webkit-scrollbar-track {
   background: transparent;
+  margin: 4px; /* tạo khoảng cách */
 }
 
-body::-webkit-scrollbar-thumb,
-.composer-scroll::-webkit-scrollbar-thumb,
-.music-list::-webkit-scrollbar-thumb,
-.friends-list::-webkit-scrollbar-thumb,
-.bubble-note-content::-webkit-scrollbar-thumb,
-.note-textarea::-webkit-scrollbar-thumb {
-  background: #364152;
+/* Thumb */
+*::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.5); /* slate-500 */
   border-radius: 999px;
+  border: 2px solid transparent; 
+  background-clip: content-box; /* tạo khoảng hở => nhìn như floating */
+  transition: all 0.2s ease;
 }
 
-body::-webkit-scrollbar-thumb:hover,
-.composer-scroll::-webkit-scrollbar-thumb:hover,
-.music-list::-webkit-scrollbar-thumb:hover,
-.friends-list::-webkit-scrollbar-thumb:hover,
-.bubble-note-content::-webkit-scrollbar-thumb:hover,
-.note-textarea::-webkit-scrollbar-thumb:hover {
-  background: #4a5870;
+/* Hover */
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.8);
+}
+
+/* Active */
+*::-webkit-scrollbar-thumb:active {
+  background: rgba(203, 213, 225, 1);
+}
+
+/* Optional: corner */
+*::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 @media (max-width: 560px) {

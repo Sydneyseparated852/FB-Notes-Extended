@@ -14,6 +14,7 @@ interface CreateNoteMessage {
     title: string;
     artist: string;
   } | null;
+  musicTrimStartMs?: number;
 }
 
 interface GetTokensMessage {
@@ -38,6 +39,14 @@ interface SearchMusicMessage {
   count?: number;
 }
 
+interface PlayMusicMessage {
+  type: 'PLAY_MUSIC';
+  tokens: FacebookTokens;
+  musicId: string;
+  songId?: string;
+  audioClusterId?: string;
+}
+
 interface SearchFriendsMessage {
   type: 'SEARCH_FRIENDS';
   tokens: FacebookTokens;
@@ -46,7 +55,7 @@ interface SearchFriendsMessage {
   count?: number;
 }
 
-type ExtensionMessage = CreateNoteMessage | GetTokensMessage | GetCurrentNoteStatusMessage | DeleteNoteMessage | SearchMusicMessage | SearchFriendsMessage;
+type ExtensionMessage = CreateNoteMessage | GetTokensMessage | GetCurrentNoteStatusMessage | DeleteNoteMessage | SearchMusicMessage | SearchFriendsMessage | PlayMusicMessage;
 
 chrome.webNavigation.onCompleted.addListener((details) => {
   if (details.url.includes('facebook.com')) {
@@ -117,7 +126,7 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, _sender, sendRe
       chrome.scripting.executeScript({
         target: { tabId: tabs[0].id },
         func: createNoteFromPage,
-        args: [message.tokens, message.description, message.duration, message.audienceSetting, message.selectedFriendIds || [], message.selectedMusic || null]
+        args: [message.tokens, message.description, message.duration, message.audienceSetting, message.selectedFriendIds || [], message.selectedMusic || null, message.musicTrimStartMs || 0]
       }, (results) => {
         if (chrome.runtime.lastError || !results?.[0]) {
           clearTimeout(timeoutId);
@@ -246,7 +255,7 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, _sender, sendRe
         }
 
         clearTimeout(timeoutId);
-        replyOnce(results[0].result as { success: boolean; error?: string; items?: Array<{ id: string; songId?: string; title: string; artist: string; imageUri?: string; durationMs?: number; }> });
+        replyOnce(results[0].result as { success: boolean; error?: string; items?: Array<{ id: string; songId?: string; audioClusterId?: string; title: string; artist: string; imageUri?: string; durationMs?: number; progressiveDownloadUrl?: string }> });
       });
     });
     return true;
@@ -340,6 +349,51 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, _sender, sendRe
 
     return true;
   }
+
+  if (message.type === 'PLAY_MUSIC') {
+    let replied = false;
+    const replyOnce = (payload: { success: boolean; error?: string; progressiveDownload?: string }) => {
+      if (replied) return;
+      replied = true;
+      sendResponse(payload);
+    };
+
+    const timeoutId = setTimeout(() => {
+      replyOnce({ success: false, error: 'PLAY_MUSIC timeout: no response from tab context' });
+    }, 20000);
+
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (!tabs[0]?.id) {
+        clearTimeout(timeoutId);
+        replyOnce({ success: false, error: 'No active tab found' });
+        return;
+      }
+
+      const activeUrl = tabs[0].url || '';
+      if (!activeUrl.includes('facebook.com')) {
+        clearTimeout(timeoutId);
+        replyOnce({ success: false, error: 'Open facebook.com tab before playing music' });
+        return;
+      }
+
+      chrome.scripting.executeScript({
+        target: { tabId: tabs[0].id },
+        func: playMusicFromPage,
+        args: [message.tokens, message.musicId, message.songId, message.audioClusterId]
+      }, (results) => {
+        if (chrome.runtime.lastError || !results?.[0]) {
+          clearTimeout(timeoutId);
+          replyOnce({ success: false, error: chrome.runtime.lastError?.message || 'Failed to play music in page context' });
+          return;
+        }
+
+        clearTimeout(timeoutId);
+        replyOnce(results[0].result as { success: boolean; error?: string; progressiveDownload?: string });
+      });
+    });
+
+    return true;
+  }
 });
 
 function getPageInfo(): { cookie: string; html: string } {
@@ -355,7 +409,8 @@ async function createNoteFromPage(
   duration: number,
   audienceSetting: 'DEFAULT' | 'FRIENDS' | 'PUBLIC' | 'CONTACTS' | 'CUSTOM',
   selectedFriendIds: string[],
-  selectedMusic: { id: string; songId?: string; audioClusterId?: string; title: string; artist: string } | null
+  selectedMusic: { id: string; songId?: string; audioClusterId?: string; title: string; artist: string } | null,
+  musicTrimStartMs: number
 ): Promise<{ success: boolean; error?: string }> {
   const isSafeToken = (value: unknown): value is string => {
     return typeof value === 'string' && /^[A-Za-z0-9:_-]{6,300}$/.test(value);
@@ -474,14 +529,14 @@ async function createNoteFromPage(
         description: normalizedDescription,
         note_type: 'MUSIC_NOTE_WITH_TEXT',
         audio_cluster_id: preferredAudioClusterId,
-        song_start_time_ms: 0,
+        song_start_time_ms: musicTrimStartMs,
       }
       : {
         ...baseInput,
         description: null,
         note_type: 'MUSIC_NOTE_MUSIC_ONLY',
         audio_cluster_id: preferredAudioClusterId,
-        song_start_time_ms: 0,
+        song_start_time_ms: musicTrimStartMs,
       })
     : null;
 
@@ -504,7 +559,7 @@ async function createNoteFromPage(
           description: normalizedDescription,
           note_type: 'MUSIC_NOTE_WITH_TEXT',
           audio_cluster_id: audioClusterId,
-          song_start_time_ms: 0,
+          song_start_time_ms: musicTrimStartMs,
         });
 
         variants.push({
@@ -513,7 +568,7 @@ async function createNoteFromPage(
           description: normalizedDescription,
           note_type: 'MUSIC_NOTE',
           audio_cluster_id: audioClusterId,
-          song_start_time_ms: 0,
+          song_start_time_ms: musicTrimStartMs,
         });
       } else {
         variants.push({
@@ -522,7 +577,7 @@ async function createNoteFromPage(
           description: null,
           note_type: 'MUSIC_NOTE_MUSIC_ONLY',
           audio_cluster_id: audioClusterId,
-          song_start_time_ms: 0,
+          song_start_time_ms: musicTrimStartMs,
         });
 
         variants.push({
@@ -531,7 +586,7 @@ async function createNoteFromPage(
           description: '',
           note_type: 'MUSIC_NOTE',
           audio_cluster_id: audioClusterId,
-          song_start_time_ms: 0,
+          song_start_time_ms: musicTrimStartMs,
         });
       }
     }
@@ -875,7 +930,7 @@ async function searchMusicFromPage(
   tokens: FacebookTokens,
   query: string,
   count: number
-): Promise<{ success: boolean; error?: string; items?: Array<{ id: string; songId?: string; audioClusterId?: string; title: string; artist: string; imageUri?: string; durationMs?: number }> }> {
+): Promise<{ success: boolean; error?: string; items?: Array<{ id: string; songId?: string; audioClusterId?: string; title: string; artist: string; imageUri?: string; durationMs?: number; progressiveDownloadUrl?: string }> }> {
   const extract = (source: string, regex: RegExp): string => {
     const match = regex.exec(source);
     return match?.[1] || '';
@@ -976,11 +1031,14 @@ async function searchMusicFromPage(
           artist: String(item?.display_subtitle?.text || ''),
           imageUri: item?.display_image?.uri ? String(item.display_image.uri) : undefined,
           durationMs: typeof item?.duration_in_ms === 'number' ? item.duration_in_ms : undefined,
+          progressiveDownloadUrl: Array.isArray(item?.progressive_download) && item.progressive_download[0]?.url
+            ? String(item.progressive_download[0].url)
+            : undefined,
         }))
         .filter((item: { id: string; title: string }) => Boolean(item.id) && Boolean(item.title))
       : [];
 
-    const items: Array<{ id: string; songId?: string; audioClusterId?: string; title: string; artist: string; imageUri?: string; durationMs?: number }> = [];
+    const items: Array<{ id: string; songId?: string; audioClusterId?: string; title: string; artist: string; imageUri?: string; durationMs?: number; progressiveDownloadUrl?: string }> = [];
     const seen = new Set<string>();
 
     for (const item of itemsFromEdges) {
@@ -1010,6 +1068,9 @@ async function searchMusicFromPage(
               artist: String(node?.display_subtitle?.text || ''),
               imageUri: node?.display_image?.uri ? String(node.display_image.uri) : undefined,
               durationMs: typeof node?.duration_in_ms === 'number' ? node.duration_in_ms : undefined,
+              progressiveDownloadUrl: Array.isArray(node?.progressive_download) && node.progressive_download[0]?.url
+                ? String(node.progressive_download[0].url)
+                : undefined,
             });
             if (items.length >= safeCount) return;
           }
@@ -1217,6 +1278,134 @@ async function fetchCurrentNoteStatusFromPage(
     return {
       success: false,
       error: err instanceof Error ? err.message : 'Unknown error while fetching current note status',
+    };
+  }
+}
+
+async function playMusicFromPage(
+  tokens: FacebookTokens,
+  musicId: string,
+  songId?: string,
+  audioClusterId?: string
+): Promise<{ success: boolean; error?: string; progressiveDownload?: string }> {
+  const isSafeToken = (value: unknown): value is string => {
+    return typeof value === 'string' && /^[A-Za-z0-9:_-]{6,300}$/.test(value);
+  };
+
+  const extract = (source: string, regex: RegExp): string => {
+    const match = regex.exec(source);
+    return match?.[1] || '';
+  };
+
+  const pageHtml = document.documentElement.outerHTML;
+  const spinR = extract(pageHtml, /"__spin_r":(\d+)/);
+  const spinB = extract(pageHtml, /"__spin_b":"([^"]+)"/);
+  const spinT = extract(pageHtml, /"__spin_t":(\d+)/);
+  const rev = extract(pageHtml, /"client_revision":(\d+)/);
+  const hsi = extract(pageHtml, /"hsi":"(\d+)"/);
+  const ccg = extract(pageHtml, /"__ccg":"([^"]+)"/);
+  const cometReq = extract(pageHtml, /"__comet_req":"?([^",}]+)"?/);
+
+  const audioClusterIdValue = songId || audioClusterId || musicId;
+
+  const body = new URLSearchParams();
+  body.append('av', tokens.userId);
+  body.append('__user', tokens.userId);
+  body.append('__a', '1');
+  body.append('__comet_req', cometReq || '15');
+  if (ccg) body.append('__ccg', ccg);
+  body.append('dpr', String(self.devicePixelRatio || 1));
+  body.append('fb_dtsg', tokens.fb_dtsg);
+  body.append('jazoest', tokens.jazoest);
+  if (isSafeToken(tokens.lsd)) body.append('lsd', tokens.lsd);
+  if (spinR) body.append('__spin_r', spinR);
+  if (spinB) body.append('__spin_b', spinB);
+  body.append('__spin_t', spinT || String(Math.floor(Date.now() / 1000)));
+  if (rev) body.append('__rev', rev);
+  if (hsi) body.append('__hsi', hsi);
+  body.append('fb_api_caller_class', 'RelayModern');
+  body.append('fb_api_req_friendly_name', 'MWInboxTrayMusicNotePlayerQuery');
+  body.append('server_timestamps', 'true');
+  body.append('variables', JSON.stringify({
+    audio_cluster_id: audioClusterIdValue,
+    product: 'FB_NOTES'
+  }));
+  body.append('doc_id', '7296254287127256');
+
+  try {
+    const response = await fetch('/api/graphql/', {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'X-FB-Friendly-Name': 'MWInboxTrayMusicNotePlayerQuery',
+      },
+      body: body.toString(),
+    });
+
+    const text = await response.text();
+    const jsonText = text.replace('for (;;);', '').trim();
+
+    let json: any;
+    try {
+      json = JSON.parse(jsonText);
+    } catch {
+      return { success: false, error: `Invalid JSON response: ${jsonText.slice(0, 220)}` };
+    }
+
+    if (json?.error) {
+      const summary = json.errorSummary || 'GraphQL request failed';
+      const descriptionText = json.errorDescription || '';
+      return { success: false, error: `${summary}${descriptionText ? ` - ${descriptionText}` : ''} (code: ${json.error})` };
+    }
+
+    if (Array.isArray(json?.errors) && json.errors.length > 0) {
+      return { success: false, error: json.errors[0]?.message || 'GraphQL error' };
+    }
+
+    // Find progressive_download URL in response
+    const findProgressiveDownload = (node: any): string | null => {
+      if (!node || typeof node !== 'object') return null;
+      
+      if (typeof node.progressive_download === 'string' && node.progressive_download.length > 0) {
+        return node.progressive_download;
+      }
+      if (typeof node.progressive_download_url === 'string' && node.progressive_download_url.length > 0) {
+        return node.progressive_download_url;
+      }
+      if (typeof node.audio_url === 'string' && node.audio_url.length > 0) {
+        return node.audio_url;
+      }
+      if (typeof node.play_url === 'string' && node.play_url.length > 0) {
+        return node.play_url;
+      }
+      if (typeof node.uri === 'string' && node.uri.includes('audio') && node.uri.length > 0) {
+        return node.uri;
+      }
+      if (typeof node.url === 'string' && node.url.includes('audio') && node.url.length > 0) {
+        return node.url;
+      }
+
+      for (const value of Object.values(node)) {
+        if (value && typeof value === 'object') {
+          const result = findProgressiveDownload(value);
+          if (result) return result;
+        }
+      }
+      return null;
+    };
+
+    const progressiveDownload = findProgressiveDownload(json?.data);
+
+    if (!progressiveDownload) {
+      return { success: false, error: 'No audio URL found in response' };
+    }
+
+    return { success: true, progressiveDownload };
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : 'Unknown error while playing music',
     };
   }
 }

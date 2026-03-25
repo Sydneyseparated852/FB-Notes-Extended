@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Loader2, Music, Users, Clock3, X, Github, Languages, Trash2 } from 'lucide-react';
+import { Loader2, Music, Users, Clock3, X, Github, Languages, Trash2, Play, Pause, Check } from 'lucide-react';
 import { FacebookTokens } from '../lib/tokens';
 import { processNoteInput } from '../lib/noteProcessor';
 import { createTranslator, resolveInitialLanguage, type LanguageCode } from './i18n';
 
-const MAX_DESCRIPTION_LENGTH = 10000;
+const MAX_DESCRIPTION_LENGTH = 600;
 const POPUP_STATE_KEY = 'popupComposerStateV2';
 const POPUP_LANGUAGE_KEY = 'popupLanguageV1';
 const MUSIC_PAGE_SIZE = 12;
@@ -16,6 +16,7 @@ const DURATION_OPTIONS: Array<{ label: string; value: number }> = [
   { label: '24h', value: 24 * 60 * 60 },
   { label: '3d', value: 3 * 24 * 60 * 60 },
 ];
+const MAX_CUSTOM_DURATION_MINUTES = 8 * 24 * 60; // 8 days in minutes
 
 type AudienceSetting = 'DEFAULT' | 'FRIENDS' | 'PUBLIC' | 'CONTACTS' | 'CUSTOM';
 type FriendItem = {
@@ -31,6 +32,7 @@ type MusicItem = {
   artist: string;
   imageUri?: string;
   durationMs?: number;
+  progressiveDownloadUrl?: string;
 };
 
 type PersistedState = {
@@ -57,7 +59,8 @@ type CurrentNoteStatus = {
 };
 
 const formatDuration = (durationMs?: number): string => {
-  if (!durationMs || durationMs <= 0) return '--:--';
+  if (durationMs === undefined || durationMs === null) return '--:--';
+  if (durationMs < 0) return '0:00';
   const totalSeconds = Math.floor(durationMs / 1000);
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
@@ -75,7 +78,6 @@ const formatDurationFromSeconds = (seconds: number): string => {
 };
 
 const AUDIENCE_OPTIONS: Array<{ key: string; value: AudienceSetting }> = [
-  { key: 'audience.default', value: 'DEFAULT' },
   { key: 'audience.friends', value: 'FRIENDS' },
   { key: 'audience.public', value: 'PUBLIC' },
   { key: 'audience.contacts', value: 'CONTACTS' },
@@ -88,7 +90,7 @@ const App: React.FC = () => {
   const [noteText, setNoteText] = useState('');
   const [duration, setDuration] = useState(86400);
   const [customDurationMinutes, setCustomDurationMinutes] = useState('');
-  const [audienceSetting, setAudienceSetting] = useState<AudienceSetting>('DEFAULT');
+  const [audienceSetting, setAudienceSetting] = useState<AudienceSetting>('FRIENDS');
 
   const [friendQuery, setFriendQuery] = useState('');
   const [friendItems, setFriendItems] = useState<FriendItem[]>([]);
@@ -103,6 +105,24 @@ const App: React.FC = () => {
   const [musicLoading, setMusicLoading] = useState(false);
   const [visibleMusicCount, setVisibleMusicCount] = useState(MUSIC_PAGE_SIZE);
   const [selectedMusic, setSelectedMusic] = useState<MusicItem | null>(null);
+  const [playingMusicId, setPlayingMusicId] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const [musicTrimStartMs, setMusicTrimStartMs] = useState(0);
+  const [musicTrimWindowMs] = useState(30000);
+  const [previewPlaying, setPreviewPlaying] = useState(false);
+  const [previewProgressMs, setPreviewProgressMs] = useState(0);
+
+  // Stop audio and reset preview when selectedMusic changes
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+    setPreviewPlaying(false);
+    setPreviewProgressMs(0);
+    setMusicTrimStartMs(0);
+  }, [selectedMusic?.id]);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [result, setResult] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -226,13 +246,134 @@ const App: React.FC = () => {
       }
 
       if (response?.success) {
-        setMusicItems(Array.isArray(response.items) ? response.items : []);
+        const items = Array.isArray(response.items) ? response.items : [];
+        console.log('Music items received:', items.map((i: any) => ({ id: i.id, title: i.title, hasUrl: !!i.progressiveDownloadUrl, url: i.progressiveDownloadUrl?.slice(0, 50) })));
+        setMusicItems(items);
         setVisibleMusicCount(MUSIC_PAGE_SIZE);
       } else {
         setResult({ type: 'error', message: response?.error || 'Music search failed' });
       }
     });
   }, [tokens, tokenStatus]);
+
+  const handlePlayMusic = useCallback((item: MusicItem) => {
+    // If already playing this item, stop it
+    if (playingMusicId === item.id && audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+      setPlayingMusicId(null);
+      return;
+    }
+
+    // Stop any currently playing audio
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+
+    setPreviewPlaying(false);
+    setPreviewProgressMs(0);
+
+    // Use progressiveDownloadUrl directly from search results
+    if (!item.progressiveDownloadUrl) {
+      setResult({ type: 'error', message: 'No audio URL available' });
+      return;
+    }
+
+    setPlayingMusicId(item.id);
+
+    const audio = new Audio(item.progressiveDownloadUrl);
+    audioRef.current = audio;
+
+    audio.onended = () => {
+      setPlayingMusicId(null);
+    };
+
+    audio.onerror = () => {
+      setPlayingMusicId(null);
+      setResult({ type: 'error', message: 'Audio playback error' });
+    };
+
+    audio.play().catch(() => {
+      setPlayingMusicId(null);
+      setResult({ type: 'error', message: 'Failed to play audio' });
+    });
+  }, [playingMusicId]);
+
+  const handlePreviewPlayToggle = useCallback(() => {
+    if (!selectedMusic) return;
+    if (!selectedMusic.progressiveDownloadUrl) {
+      setResult({ type: 'error', message: 'No audio URL available' });
+      return;
+    }
+
+    const existingAudio = audioRef.current;
+    if (previewPlaying && existingAudio) {
+      existingAudio.pause();
+      audioRef.current = null;
+      setPreviewPlaying(false);
+      setPreviewProgressMs(0);
+      return;
+    }
+
+    // Stop list playback if any
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+    setPlayingMusicId(null);
+
+    const durationMs = selectedMusic.durationMs || 0;
+    const maxStart = Math.max(0, durationMs - musicTrimWindowMs);
+    const startMs = Math.min(Math.max(0, musicTrimStartMsRef.current), maxStart);
+
+    const audio = new Audio(selectedMusic.progressiveDownloadUrl);
+    audioRef.current = audio;
+
+    audio.currentTime = Math.max(0, startMs / 1000);
+    setPreviewProgressMs(0);
+    setPreviewPlaying(true);
+
+    audio.ontimeupdate = () => {
+      const currentStartMs = musicTrimStartMsRef.current;
+      const currentMs = audio.currentTime * 1000;
+      const playedFromStartMs = Math.max(0, currentMs - currentStartMs);
+      setPreviewProgressMs(Math.min(playedFromStartMs, musicTrimWindowMs));
+      if (playedFromStartMs >= musicTrimWindowMs) {
+        audio.pause();
+        setPreviewPlaying(false);
+      }
+    };
+
+    audio.onended = () => {
+      setPreviewPlaying(false);
+    };
+
+    audio.onerror = () => {
+      setPreviewPlaying(false);
+      setResult({ type: 'error', message: 'Audio playback error' });
+    };
+
+    audio.play().catch(() => {
+      setPreviewPlaying(false);
+      setResult({ type: 'error', message: 'Failed to play audio' });
+    });
+  }, [selectedMusic, previewPlaying, musicTrimStartMs, musicTrimWindowMs]);
+
+  
+  useEffect(() => {
+    if (!previewPlaying) return;
+    // Don't restart audio while dragging - will restart on drag end
+    if (isDraggingTrimRef.current) return;
+    const audio = audioRef.current;
+    if (audio && selectedMusic) {
+      const durationMs = selectedMusic.durationMs || 0;
+      const maxStart = Math.max(0, durationMs - musicTrimWindowMs);
+      const newStartMs = Math.min(Math.max(0, musicTrimStartMs), maxStart);
+      audio.currentTime = Math.max(0, newStartMs / 1000);
+      setPreviewProgressMs(0);
+    }
+  }, [musicTrimStartMs, previewPlaying, selectedMusic, musicTrimWindowMs]);
 
   const handleSearchFriends = useCallback((query: string, cursor: string | null = null) => {
     if (!tokens || tokenStatus !== 'ready') return;
@@ -325,9 +466,97 @@ const App: React.FC = () => {
     if (!Number.isFinite(parsed) || parsed <= 0) {
       return;
     }
-    const seconds = Math.floor(parsed * 60);
+    // Limit to max 8 days
+    const clampedMinutes = Math.min(parsed, MAX_CUSTOM_DURATION_MINUTES);
+    const seconds = Math.floor(clampedMinutes * 60);
     setDuration(seconds);
   }, []);
+
+  const musicTrimDragRef = useRef<{ dragging: boolean; startX: number; startTrimMs: number } | null>(null);
+  const musicWaveContainerRef = useRef<HTMLDivElement | null>(null);
+  const musicTrimStartMsRef = useRef<number>(0);
+  const isDraggingTrimRef = useRef<boolean>(false);
+  const previewPlayingRef = useRef<boolean>(false);
+  const selectedMusicRef = useRef<MusicItem | null>(null);
+
+  // Keep refs in sync with state for audio handlers
+  useEffect(() => {
+    musicTrimStartMsRef.current = musicTrimStartMs;
+  }, [musicTrimStartMs]);
+  useEffect(() => {
+    previewPlayingRef.current = previewPlaying;
+  }, [previewPlaying]);
+  useEffect(() => {
+    selectedMusicRef.current = selectedMusic;
+  }, [selectedMusic]);
+
+  const clampMusicTrimStart = useCallback((valueMs: number, durationMs?: number) => {
+    const safeDuration = typeof durationMs === 'number' && durationMs > 0 ? durationMs : 0;
+    const maxStart = Math.max(0, safeDuration - musicTrimWindowMs);
+    return Math.min(Math.max(0, valueMs), maxStart);
+  }, [musicTrimWindowMs]);
+
+  const startMusicTrimDrag = useCallback((clientX: number) => {
+    isDraggingTrimRef.current = true;
+    musicTrimDragRef.current = {
+      dragging: true,
+      startX: clientX,
+      startTrimMs: musicTrimStartMs,
+    };
+  }, [musicTrimStartMs]);
+
+  useEffect(() => {
+    const handleMove = (evt: MouseEvent | TouchEvent) => {
+      const drag = musicTrimDragRef.current;
+      if (!drag?.dragging) return;
+      if (!selectedMusic) return;
+      const container = musicWaveContainerRef.current;
+      if (!container) return;
+
+      const rect = container.getBoundingClientRect();
+      const x = 'touches' in evt ? evt.touches[0]?.clientX : (evt as MouseEvent).clientX;
+      if (typeof x !== 'number') return;
+      const deltaPx = x - drag.startX;
+      const ratio = rect.width > 0 ? deltaPx / rect.width : 0;
+      const durationMs = selectedMusic.durationMs || 0;
+      const deltaMs = ratio * durationMs;
+      setMusicTrimStartMs(() => clampMusicTrimStart(drag.startTrimMs + deltaMs, durationMs));
+    };
+
+    const handleUp = () => {
+      const drag = musicTrimDragRef.current;
+      if (drag) drag.dragging = false;
+      
+      // Restart audio from new position after drag ends if playing
+      const currentPreviewPlaying = previewPlayingRef.current;
+      const currentAudio = audioRef.current;
+      const currentSelectedMusic = selectedMusicRef.current;
+      if (currentPreviewPlaying && currentAudio && currentSelectedMusic) {
+        const durationMs = currentSelectedMusic.durationMs || 0;
+        const maxStart = Math.max(0, durationMs - musicTrimWindowMs);
+        const newStartMs = Math.min(Math.max(0, musicTrimStartMsRef.current), maxStart);
+        currentAudio.currentTime = Math.max(0, newStartMs / 1000);
+        setPreviewProgressMs(0);
+      }
+      
+      // Delay resetting drag flag so click handler can check it
+      setTimeout(() => {
+        isDraggingTrimRef.current = false;
+      }, 50);
+    };
+
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', handleUp);
+    window.addEventListener('touchmove', handleMove, { passive: false });
+    window.addEventListener('touchend', handleUp);
+
+    return () => {
+      window.removeEventListener('mousemove', handleMove);
+      window.removeEventListener('mouseup', handleUp);
+      window.removeEventListener('touchmove', handleMove);
+      window.removeEventListener('touchend', handleUp);
+    };
+  }, [selectedMusic, clampMusicTrimStart]);
 
   const handleMusicListScroll = useCallback(() => {
     const el = musicListRef.current;
@@ -365,6 +594,11 @@ const App: React.FC = () => {
       return;
     }
 
+    if (encodedLength > MAX_DESCRIPTION_LENGTH) {
+      setResult({ type: 'error', message: `Nội dung quá ${MAX_DESCRIPTION_LENGTH} ký tự (${encodedLength}/${MAX_DESCRIPTION_LENGTH}). Vui lòng rút gọn lại.` });
+      return;
+    }
+
     setIsSubmitting(true);
     setResult(null);
 
@@ -376,6 +610,7 @@ const App: React.FC = () => {
       audienceSetting,
       selectedFriendIds,
       selectedMusic,
+      musicTrimStartMs: Math.floor(musicTrimStartMs / 1000) * 1000, // Round to whole seconds
     }, (response) => {
       setIsSubmitting(false);
       if (chrome.runtime.lastError) {
@@ -402,7 +637,7 @@ const App: React.FC = () => {
         setResult({ type: 'error', message: response?.error || t('share.error.failed') });
       }
     });
-  }, [tokens, noteText, duration, audienceSetting, selectedFriendIds, selectedMusic, isSubmitting, t]);
+  }, [tokens, noteText, duration, audienceSetting, selectedFriendIds, selectedMusic, musicTrimStartMs, isSubmitting, t]);
 
   const charPercentage = (encodedLength / MAX_DESCRIPTION_LENGTH) * 100;
   const charStatus = charPercentage < 50 ? 'safe' : charPercentage < 80 ? 'warning' : 'danger';
@@ -414,7 +649,7 @@ const App: React.FC = () => {
   const previewText = useMemo(() => {
     const text = (currentNoteStatus?.description || '').trim();
     if (text) return text;
-    if (currentNoteStatus?.musicTitle) return `🎵 ${currentNoteStatus.musicTitle}`;
+    if (currentNoteStatus?.musicTitle) return ``;
     return t('preview.placeholder');
   }, [currentNoteStatus, t]);
 
@@ -757,6 +992,7 @@ const App: React.FC = () => {
                   className="duration-custom-input"
                   type="number"
                   min="1"
+                  max={MAX_CUSTOM_DURATION_MINUTES}
                   step="1"
                   value={customDurationMinutes}
                   onChange={(e) => setCustomDurationMinutes(e.target.value)}
@@ -778,13 +1014,51 @@ const App: React.FC = () => {
 
       {/* Music Modal */}
       {activeModal === 'music' && (
-        <div className="modal-overlay" onClick={() => setActiveModal(null)}>
+        <div className="modal-overlay" onClick={() => {
+          // Pause preview audio when closing modal
+          if (audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current = null;
+          }
+          setPreviewPlaying(false);
+          setPreviewProgressMs(0);
+          setActiveModal(null);
+        }}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <span className="modal-title">{t('music.title')}</span>
-              <button className="modal-close" onClick={() => setActiveModal(null)}>
-                <X size={16} />
-              </button>
+              <div className="modal-header-actions">
+                {selectedMusic && (
+                  <button
+                    className="music-save-btn-header"
+                    onClick={() => {
+                      // Pause preview audio when saving
+                      if (audioRef.current) {
+                        audioRef.current.pause();
+                        audioRef.current = null;
+                      }
+                      setPreviewPlaying(false);
+                      setPreviewProgressMs(0);
+                      setActiveModal(null);
+                    }}
+                    title={t('music.save')}
+                  >
+                    <Check size={16} />
+                  </button>
+                )}
+                <button className="modal-close" onClick={() => {
+                  // Pause preview audio when closing modal
+                  if (audioRef.current) {
+                    audioRef.current.pause();
+                    audioRef.current = null;
+                  }
+                  setPreviewPlaying(false);
+                  setPreviewProgressMs(0);
+                  setActiveModal(null);
+                }}>
+                  <X size={16} />
+                </button>
+              </div>
             </div>
             <div className="modal-body">
               {selectedMusic && (
@@ -799,6 +1073,82 @@ const App: React.FC = () => {
                   >
                     {t('music.clear')}
                   </button>
+                </div>
+              )}
+              {selectedMusic && (
+                <div className="music-trim">
+                  <div className="music-trim-time">
+                    <span>{formatDuration(musicTrimStartMs + previewProgressMs)}</span>
+                    <button
+                      className="music-preview-play-btn music-preview-play-btn-inline"
+                      onClick={handlePreviewPlayToggle}
+                      type="button"
+                      title={previewPlaying ? 'Pause' : 'Play'}
+                    >
+                      {previewPlaying ? <Pause size={14} /> : <Play size={14} />}
+                    </button>
+                    <span>{formatDuration((selectedMusic.durationMs || 0) - musicTrimStartMs - previewProgressMs)}</span>
+                  </div>
+                  <div
+                    className="music-wave"
+                    ref={musicWaveContainerRef}
+                    onClick={(e) => {
+                      // Don't seek if this was a drag operation
+                      if (isDraggingTrimRef.current) return;
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const x = e.clientX - rect.left;
+                      const ratio = rect.width > 0 ? x / rect.width : 0;
+                      const durationMs = selectedMusic.durationMs || 0;
+                      const maxStart = Math.max(0, durationMs - musicTrimWindowMs);
+                      setMusicTrimStartMs(Math.min(Math.max(0, ratio * durationMs), maxStart));
+                    }}
+                  >
+                    {Array.from({ length: 44 }).map((_, idx) => {
+                      const seed = ((idx + 1) * 1103515245 + 12345) >>> 0;
+                      const val = ((seed >> 16) & 0x7fff) / 0x7fff;
+                      const height = 6 + val * 20;
+                      return (
+                        <div
+                          key={idx}
+                          className="music-wave-bar"
+                          style={{ height: `${height}px` }}
+                        />
+                      );
+                    })}
+                    <div
+                      className="music-trim-window"
+                      style={{
+                        left: `${(() => {
+                          const d = selectedMusic.durationMs || 0;
+                          if (d <= 0) return 0;
+                          return (musicTrimStartMs / d) * 100;
+                        })()}%`,
+                        width: `${(() => {
+                          const d = selectedMusic.durationMs || 0;
+                          if (d <= 0) return 40;
+                          return Math.min(100, Math.max(8, (musicTrimWindowMs / d) * 100));
+                        })()}%`,
+                      }}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        startMusicTrimDrag(e.clientX);
+                      }}
+                      onTouchStart={(e) => {
+                        e.stopPropagation();
+                        const x = e.touches[0]?.clientX;
+                        if (typeof x !== 'number') return;
+                        startMusicTrimDrag(x);
+                      }}
+                    >
+                      <div
+                        className="music-trim-progress"
+                        style={{
+                          width: `${musicTrimWindowMs > 0 ? (previewProgressMs / musicTrimWindowMs) * 100 : 0}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
                 </div>
               )}
               <div className="music-search-row">
@@ -819,7 +1169,7 @@ const App: React.FC = () => {
               </div>
               <div className="music-list" ref={musicListRef} onScroll={handleMusicListScroll}>
                 {visibleMusicItems.map((item) => (
-                  <button
+                  <div
                     key={`${item.id}-${item.songId || ''}`}
                     className={`music-item ${selectedMusic?.id === item.id ? 'active' : ''}`}
                     onClick={() => setSelectedMusic(item)}
@@ -835,8 +1185,19 @@ const App: React.FC = () => {
                         <span className="music-item-artist">{item.artist || 'Unknown artist'}</span>
                       </div>
                       <span className="music-item-duration">{formatDuration(item.durationMs)}</span>
+                      <button
+                        className="music-play-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handlePlayMusic(item);
+                        }}
+                        title={playingMusicId === item.id ? 'Pause' : 'Play'}
+                        type="button"
+                      >
+                        {playingMusicId === item.id ? <Pause size={14} /> : <Play size={14} />}
+                      </button>
                     </div>
-                  </button>
+                  </div>
                 ))}
                 {!musicLoading && musicItems.length === 0 && (
                   <div className="music-empty">{t('music.empty')}</div>
